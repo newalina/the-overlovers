@@ -1,0 +1,269 @@
+@import url("https://use.typekit.net/mto7bqh.css");
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.home {
+  height: 100vh;
+  background: url("assets/images/000019.JPG");
+  background-size: 110% auto;
+}
+
+#anchor-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+#header {
+  position: absolute;
+  margin-top: 4vh;
+}
+
+#album {
+  position: absolute;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2vh 8vw;
+  margin-top: 44vh;
+  padding: 0 8vw;
+  visibility: hidden;
+}
+
+#album > * {
+  visibility: visible;
+  transition: opacity 200ms, transform 200ms, filter 200ms;
+}
+
+#album:hover > * {
+  opacity: 0.4;
+  transform: scale(0.9);
+}
+
+#album > *:hover {
+  opacity: 1;
+  transform: scale(1.1);
+  filter: drop-shadow(0 0 18px black);
+}
+
+.song {
+  height: 60px;
+}
+
+#lyrics {
+  position: absolute;
+  justify-content: center;
+  text-align: center;
+  margin-top: calc(8vh + 80px);
+  font-family: legitima, serif;
+  font-weight: 500;
+  font-style: normal;
+  color: white;
+}
+
+#lyrics-1 {
+  font-size: calc((88vh - 92px) / 34);
+  text-shadow: 0 0 10px #5c6164;
+}
+
+#lyrics-2 {
+  font-size: calc((88vh - 92px) / 41);
+}
+
+#lyrics-3 {
+  margin-top: 4vh;
+  font-size: calc((88vh - 92px) / 38);
+  text-shadow: 0 0 10px #5c6164;
+  line-height: 1.7;
+}
+
+#lyrics-4 {
+  font-size: calc((88vh - 92px) / 37);
+  text-shadow: 0 0 20px #111a17;
+}
+
+#lyrics-5 {
+  font-size: calc((88vh - 92px) / 38);
+  text-shadow: 0 0 5px #000104;
+}
+
+#lyrics-6 {
+  font-size: calc((88vh - 92px) / 44);
+  text-shadow: 0 0 5px #000000;
+}
+
+#lyrics-7 {
+  font-size: calc((88vh - 92px) / 46.5);
+}
+
+#lyrics-8 {
+  font-size: calc((88vh - 92px) / 45);
+}
+
+#footer {
+  position: absolute;
+  display: flex;
+  gap: 12px;
+  margin-top: calc(94vh - 12px);
+}
+
+.symbol {
+  height: 80px;
+  filter: drop-shadow(0px 0px 12px white);
+  opacity: 60%;
+  transition: transform 1s;
+}
+
+.symbol:hover {
+  transform: rotateY(360deg);
+}
+
+.icon {
+  color: black;
+  opacity: 40%;
+  font-size: 24px;
+  text-shadow: 0px 0px 12px white;
+}
+
+.arrow {
+  cursor: pointer;
+  position: absolute;
+  height: 24px;
+  width: 16px;
+  transform: translateX(-50%) translateY(-50%);
+  transition: transform 0.1s;
+}
+
+.left-arrow {
+  top: calc(50% - 20px);
+  left: calc(5% - 16px);
+  rotate: 180deg;
+  transform: translateX(-50%) translateY(-50%);
+}
+
+.right-arrow {
+  top: 50%;
+  left: 95%;
+  transform: translateX(-50%) translateY(-50%);
+}
+
+.arrow-top,
+.arrow-bottom {
+  background-color: #666;
+  height: 4px;
+  left: -5px;
+  position: absolute;
+  top: 50%;
+  width: 100%;
+}
+
+.arrow-top:after,
+.arrow-bottom:after {
+  background-color: #fff;
+  content: "";
+  height: 100%;
+  position: absolute;
+  top: 0;
+  transition: all 0.15s;
+}
+
+.arrow-top {
+  transform: rotate(45deg);
+  transform-origin: bottom right;
+}
+
+.arrow-top:after {
+  left: 100%;
+  right: 0;
+  transition-delay: 0s;
+}
+
+.arrow-bottom {
+  transform: rotate(-45deg);
+  transform-origin: top right;
+}
+
+.arrow-bottom:after {
+  left: 0;
+  right: 100%;
+  transition-delay: 0.15s;
+}
+
+.arrow:hover .arrow-top:after {
+  left: 0;
+  transition-delay: 0.15s;
+}
+
+.arrow:hover .arrow-bottom:after {
+  right: 0;
+  transition-delay: 0s;
+}
+
+.arrow:active {
+  transform: translateX(-50%) translateY(-50%) scale(0.9);
+}
+
+@media screen and (orientation: landscape) and (max-width: 926px) and (max-height: 926px) {
+  .symbol {
+    height: 48px;
+  }
+  #album {
+    gap: 0 6vw;
+  }
+  #lyrics {
+    margin-top: calc(4vh + 60px);
+    max-height: calc(86vh - 70px);
+    overflow: scroll;
+  }
+  #lyrics::-webkit-scrollbar {
+    display: none;
+  }
+  #lyrics > * {
+    font-size: 16px;
+  }
+  #lyrics-3 {
+    line-height: 1;
+  }
+  .song {
+    height: 36px;
+  }
+  .icon {
+    font-size: 18px;
+  }
+}
+
+@media screen and (orientation: portrait) and (max-height: 926px) {
+  .home {
+    background: url("assets/images/000032970009.jpg");
+    background-size: cover;
+    background-position: center;
+  }
+  #lyrics {
+    margin-top: calc(7vh + 80px);
+    max-height: calc(84vh - 92px);
+    transform: translateY(calc(-50% + 42vh - 46px));
+    padding: 0 42px;
+    overflow: scroll;
+  }
+  #lyrics::-webkit-scrollbar {
+    display: none;
+  }
+  #lyrics > * {
+    font-size: 16px;
+  }
+  #lyrics-3 {
+    margin-top: 0;
+    line-height: 1.3;
+  }
+  #album {
+    margin-top: calc(44vh - 30px);
+    padding: 0 14vw;
+    opacity: 0.8;
+    filter: drop-shadow(0 0 12px white);
+  }
+}

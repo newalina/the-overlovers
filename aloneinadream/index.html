@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
+    />
+    <meta name="author" content="alina" />
+    <title>alone in a dream</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script
+      src="https://kit.fontawesome.com/b7a6c98a66.js"
+      crossorigin="anonymous"
+    ></script>
+  </head>
+  <body>
+    <div id="container">
+      <main>
+        <div id="anchor-container">
+          <a id="header" href="../">
+            <img
+              src="/assets/symbols/symbol black.png"
+              alt="symbol black"
+              class="symbol"
+            />
+          </a>
+        </div>
+        <div id="anchor-container">
+          <div id="lyrics">
+            <div id="lyrics-5">
+              Are you well<br />
+              Is that all there is<br />
+              That’s how long forever seems<br />
+              When you’re alone in a dream<br /><br />
+
+              I am well<br />
+              That is all that there is<br />
+              That’s how long forever seems<br />
+              When you’re alone in a dream<br /><br />
+
+              Walk inside the busy quiet<br />
+              Give yourself some time to feel alive<br />
+              In your eyes one sweet lie<br />
+              What you do behind your mind<br /><br />
+
+              Is it true she never left<br />
+              Every year she learns<br />
+              What you see is what you get<br /><br />
+
+              Turn it down the walls are thin<br />
+              Everything between us<br />
+              Like this wind and like your skin<br /><br />
+
+              Walk inside the busy quiet<br />
+              Find yourself running in circles within your lie<br />
+              Is it true you never left<br />
+              The sun, the moon, this wind, your skin<br /><br />
+
+              Walk inside your skin
+            </div>
+          </div>
+        </div>
+        <a class="arrow left-arrow" href="/fallenangel">
+          <div class="arrow-top"></div>
+          <div class="arrow-bottom"></div>
+        </a>
+        <a class="arrow right-arrow" href="/firstdayinheaven">
+          <div class="arrow-top"></div>
+          <div class="arrow-bottom"></div>
+        </a>
+        <div id="anchor-container">
+          <div id="footer">
+            <a href="https://www.instagram.com/theoverlovers" target="_blank">
+              <i class="icon fa-brands fa-square-instagram fa-xl"></i>
+            </a>
+            <a
+              href="https://open.spotify.com/album/7KUdKTrrTqQCnqXHqZALP3"
+              target="_blank"
+            >
+              <i class="icon fa-brands fa-spotify fa-xl"></i>
+            </a>
+            <a
+              href="https://music.apple.com/us/album/sensibilities/1700245072"
+              target="_blank"
+            >
+              <i class="icon fa-solid fa-music fa-xl"></i>
+            </a>
+            <a
+              href="https://music.youtube.com/playlist?list=OLAK5uy_n8Xm-bF0nlln5ZT--a3riHbIh4aljUM7c"
+              target="_blank"
+            >
+              <i class="icon fa-brands fa-youtube fa-xl"></i>
+            </a>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script type="x-shader/x-vertex" id="vertexshader">
+      attribute float size;
+      varying vec3 vColor;
+      void main() {
+      	vColor = color;
+      	vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+      	gl_PointSize = size * ( 300.0 / -mvPosition.z );
+      	gl_Position = projectionMatrix * mvPosition;
+      }
+    </script>
+    <script type="x-shader/x-fragment" id="fragmentshader">
+      vTexCoords = projectionMatrixCamera * viewMatrixCamera * modelMatrix * vec4(position, 1.0);
+    </script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+          "three/nodes": "https://unpkg.com/three@0.158.0/examples/jsm/nodes/Nodes.js",
+          "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

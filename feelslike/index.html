@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
+    />
+    <meta name="author" content="alina" />
+    <title>feels like</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script
+      src="https://kit.fontawesome.com/b7a6c98a66.js"
+      crossorigin="anonymous"
+    ></script>
+  </head>
+  <body>
+    <div id="container">
+      <main>
+        <div id="anchor-container">
+          <a id="header" href="../">
+            <img
+              src="/assets/symbols/symbol black.png"
+              alt="symbol black"
+              class="symbol"
+            />
+          </a>
+        </div>
+        <div id="anchor-container">
+          <div id="lyrics">
+            <div id="lyrics-2">
+              Somewhere behind your eyes<br />
+              The sky is crying goodbye<br />
+              It seems like destiny to you<br />
+              But you’ve seen it all, close your eyes<br /><br />
+
+              Your journey in life is coming to an end<br />
+              It’s time that you ascend to the floor<br />
+              We don’t expect for you to ever come<br />
+              Maybe you were my fun in this world<br /><br />
+
+              How much do we have to love to be human<br />
+              How long do we have to survive to be real<br /><br />
+
+              Somewhere behind your eyes<br />
+              The sky is crying goodbye<br />
+              It seems like destiny to you<br />
+              But you’ve seen it all, close your eyes<br /><br />
+
+              You wanna live in a movie then die in two hours and twenty-seven
+              minutes<br />
+              You wanna live in an album then die in forty-five minutes and
+              fifty-eight seconds<br /><br />
+
+              It rains through the window<br />
+              It leaks down the wall<br />
+              It gathers in a small pool<br />
+              It seeps into the carpet<br />
+              It takes time, you say, to dry<br /><br />
+
+              Somewhere behind your eyes<br />
+              The sky is crying goodbye<br />
+              It seems like destiny to you<br />
+              But you’ve seen it all, close your eyes
+            </div>
+          </div>
+        </div>
+        <a class="arrow left-arrow" href="/meetme">
+          <div class="arrow-top"></div>
+          <div class="arrow-bottom"></div>
+        </a>
+        <a class="arrow right-arrow" href="/pushdownandturn">
+          <div class="arrow-top"></div>
+          <div class="arrow-bottom"></div>
+        </a>
+        <div id="anchor-container">
+          <div id="footer">
+            <a href="https://www.instagram.com/theoverlovers" target="_blank">
+              <i class="icon fa-brands fa-square-instagram fa-xl"></i>
+            </a>
+            <a
+              href="https://open.spotify.com/album/7KUdKTrrTqQCnqXHqZALP3"
+              target="_blank"
+            >
+              <i class="icon fa-brands fa-spotify fa-xl"></i>
+            </a>
+            <a
+              href="https://music.apple.com/us/album/sensibilities/1700245072"
+              target="_blank"
+            >
+              <i class="icon fa-solid fa-music fa-xl"></i>
+            </a>
+            <a
+              href="https://music.youtube.com/playlist?list=OLAK5uy_n8Xm-bF0nlln5ZT--a3riHbIh4aljUM7c"
+              target="_blank"
+            >
+              <i class="icon fa-brands fa-youtube fa-xl"></i>
+            </a>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script type="x-shader/x-vertex" id="vertexshader">
+      attribute float size;
+      varying vec3 vColor;
+      void main() {
+      	vColor = color;
+      	vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+      	gl_PointSize = size * ( 300.0 / -mvPosition.z );
+      	gl_Position = projectionMatrix * mvPosition;
+      }
+    </script>
+    <script type="x-shader/x-fragment" id="fragmentshader">
+      uniform sampler2D pointTexture;
+      varying vec3 vColor;
+      void main() {
+      	gl_FragColor = vec4( vColor, 1.0 );
+      	gl_FragColor = gl_FragColor * texture2D( pointTexture, gl_PointCoord );
+      }
+    </script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+          "three/nodes": "https://unpkg.com/three@0.158.0/examples/jsm/nodes/Nodes.js",
+          "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

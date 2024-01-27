@@ -1,0 +1,189 @@
+import * as THREE from "three";
+import { Sky } from "three/addons/objects/Sky.js";
+
+createLandscape({
+  palleteImage: "/assets/textures/IMG_8671.JPG",
+});
+
+function createLandscape(params) {
+  var container = document.querySelector(".landscape");
+  var width = window.innerWidth;
+  var height = window.innerHeight;
+
+  var scene, renderer, camera;
+  var terrain;
+
+  var mouse = { x: 0, y: 0, xDamped: 0, yDamped: 0 };
+
+  init();
+
+  function init() {
+    sceneSetup();
+    sceneElements();
+    sceneTextures();
+    render();
+
+    const listener = new THREE.AudioListener();
+    camera.add(listener);
+
+    const sound = new THREE.Audio(listener);
+
+    const audioLoader = new THREE.AudioLoader();
+    audioLoader.load("/assets/songs/push down and turn.mp3", function (buffer) {
+      sound.setBuffer(buffer);
+      sound.setLoop(true);
+      sound.play();
+    });
+
+    window.addEventListener("mousemove", onInputMove);
+
+    window.addEventListener("resize", resize);
+    resize();
+  }
+
+  function sceneSetup() {
+    scene = new THREE.Scene();
+    var fogColor = new THREE.Color(0x000000);
+    scene.background = fogColor;
+    scene.fog = new THREE.Fog(fogColor, 10, 400);
+
+    sky();
+
+    camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 10000);
+    camera.position.y = 8;
+    camera.position.z = 4;
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+    scene.add(ambientLight);
+
+    renderer = new THREE.WebGLRenderer({
+      canvas: container,
+      antialias: true,
+    });
+    renderer.setPixelRatio = devicePixelRatio;
+    renderer.setSize(width, height);
+  }
+
+  function sceneElements() {
+    var geometry = new THREE.PlaneGeometry(100, 400, 400, 400);
+
+    var uniforms = {
+      time: { type: "f", value: 0.0 },
+      distortCenter: { type: "f", value: 0.1 },
+      roadWidth: { type: "f", value: 0.5 },
+      pallete: { type: "t", value: null },
+      speed: { type: "f", value: 1 },
+      maxHeight: { type: "f", value: 10.0 },
+      color: new THREE.Color(1, 1, 1),
+    };
+
+    var material = new THREE.ShaderMaterial({
+      uniforms: THREE.UniformsUtils.merge([
+        THREE.ShaderLib.basic.uniforms,
+        uniforms,
+      ]),
+      vertexShader: document.getElementById("custom-vertex").textContent,
+      fragmentShader: document.getElementById("custom-fragment").textContent,
+      wireframe: false,
+      fog: true,
+    });
+
+    terrain = new THREE.Mesh(geometry, material);
+    terrain.position.z = -180;
+    terrain.rotation.x = -Math.PI / 2;
+
+    scene.add(terrain);
+  }
+
+  function sceneTextures() {
+    // pallete
+    new THREE.TextureLoader().load(params.palleteImage, function (texture) {
+      terrain.material.uniforms.pallete.value = texture;
+      terrain.material.needsUpdate = true;
+    });
+  }
+
+  function sky() {
+    const sky = new Sky();
+    sky.scale.setScalar(450000);
+
+    const skyUniforms = sky.material.uniforms;
+
+    skyUniforms["turbidity"].value = 1;
+    skyUniforms["rayleigh"].value = 0.01;
+    skyUniforms["mieCoefficient"].value = 0.0003;
+    skyUniforms["mieDirectionalG"].value = 0.99995;
+
+    scene.add(sky);
+
+    const sunSphere = new THREE.Mesh(
+      new THREE.SphereGeometry(20000, 16, 8),
+      new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
+    sunSphere.visible = false;
+    scene.add(sunSphere);
+
+    var theta = Math.PI * -0.03;
+    var phi = 2 * Math.PI * -0.25;
+
+    sunSphere.position.x = 400000 * Math.cos(phi);
+    sunSphere.position.y = 10 * 400000 * Math.sin(phi) * Math.sin(theta);
+    sunSphere.position.z = 400000 * Math.sin(phi) * Math.cos(theta);
+
+    sky.material.uniforms.sunPosition.value.copy(sunSphere.position);
+  }
+
+  function resize() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(width, height);
+  }
+
+  function onInputMove(e) {
+    e.preventDefault();
+
+    var x, y;
+    if (e.type == "mousemove") {
+      x = e.clientX;
+      y = e.clientY;
+    } else {
+      x = e.changedTouches[0].clientX;
+      y = e.changedTouches[0].clientY;
+    }
+
+    mouse.x = x;
+    mouse.y = y;
+  }
+
+  function render() {
+    requestAnimationFrame(render);
+
+    // damping mouse for smoother interaction
+    mouse.xDamped = lerp(mouse.xDamped, mouse.x, 0.1);
+    mouse.yDamped = lerp(mouse.yDamped, mouse.y, 0.1);
+
+    var time = performance.now() * 0.001;
+    terrain.material.uniforms.time.value = time;
+    terrain.material.uniforms.distortCenter.value = Math.sin(time) * 0.1;
+    terrain.material.uniforms.maxHeight.value = map(
+      mouse.yDamped,
+      0,
+      height,
+      20,
+      5
+    );
+
+    renderer.render(scene, camera);
+  }
+
+  function map(value, start1, stop1, start2, stop2) {
+    return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
+  }
+
+  function lerp(start, end, amt) {
+    return (1 - amt) * start + amt * end;
+  }
+}
