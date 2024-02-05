@@ -45,10 +45,7 @@ function init() {
     texture.colorSpace = THREE.SRGBColorSpace;
   };
 
-  const sprite = textureLoader.load(
-    "/assets/symbols/symbol white.png",
-    assignSRGB
-  );
+  const sprite = textureLoader.load("/assets/symbols/sprite.png", assignSRGB);
 
   for (let i = 0; i < 4200; i++) {
     const x = Math.random() * 2000 - 1000;
