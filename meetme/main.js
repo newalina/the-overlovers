@@ -65,7 +65,7 @@ function init() {
 
   const pmremGenerator = new THREE.PMREMGenerator(renderer);
   const hdriLoader = new RGBELoader();
-  hdriLoader.load("/assets/hdri/poly_haven_studio_4k.hdr", function (texture) {
+  hdriLoader.load("/assets/hdri/poly_haven_studio_1k.hdr", function (texture) {
     const envMap = pmremGenerator.fromEquirectangular(texture).texture;
     texture.dispose();
     scene.environment = envMap;
