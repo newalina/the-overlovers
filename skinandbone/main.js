@@ -1,0 +1,350 @@
+import * as THREE from "three";
+
+import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import {
+  GodRaysFakeSunShader,
+  GodRaysDepthMaskShader,
+  GodRaysCombineShader,
+  GodRaysGenerateShader,
+} from "three/addons/shaders/GodRaysShader.js";
+
+let container;
+let camera, scene, renderer, materialDepth;
+
+let sphereMesh;
+
+const sunPosition = new THREE.Vector3(0, 1000, -1000);
+const clipPosition = new THREE.Vector4();
+const screenSpacePosition = new THREE.Vector3();
+
+const postprocessing = { enabled: true };
+
+const orbitRadius = 200;
+
+const bgColor = 0x000511;
+const sunColor = 0xffee00;
+
+const godrayRenderTargetResolutionMultiplier = 1.0 / 4.0;
+
+init();
+
+function init() {
+  container = document.createElement("div");
+  document.body.appendChild(container);
+
+  //
+
+  camera = new THREE.PerspectiveCamera(
+    70,
+    window.innerWidth / window.innerHeight,
+    1,
+    3000
+  );
+  camera.position.z = 200;
+
+  const listener = new THREE.AudioListener();
+  camera.add(listener);
+
+  const sound = new THREE.Audio(listener);
+
+  const audioLoader = new THREE.AudioLoader();
+  audioLoader.load("/assets/songs/skin and bone.mp3", function (buffer) {
+    sound.setBuffer(buffer);
+    sound.setLoop(true);
+    sound.play();
+  });
+
+  scene = new THREE.Scene();
+
+  materialDepth = new THREE.MeshDepthMaterial();
+
+  const loader = new OBJLoader();
+  loader.load("/assets/models/tree.obj", function (object) {
+    object.position.set(0, -150, -150);
+    object.scale.multiplyScalar(400);
+    scene.add(object);
+  });
+
+  const geo = new THREE.SphereGeometry(1, 20, 10);
+  sphereMesh = new THREE.Mesh(
+    geo,
+    new THREE.MeshBasicMaterial({ color: 0x000000 })
+  );
+  sphereMesh.scale.multiplyScalar(20);
+  scene.add(sphereMesh);
+
+  renderer = new THREE.WebGLRenderer();
+  renderer.setClearColor(0xffffff);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setAnimationLoop(animate);
+  container.appendChild(renderer.domElement);
+
+  renderer.autoClear = false;
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.minDistance = 50;
+  controls.maxDistance = 500;
+
+  window.addEventListener("resize", onWindowResize);
+
+  initPostprocessing(window.innerWidth, window.innerHeight);
+}
+
+function onWindowResize() {
+  const renderTargetWidth = window.innerWidth;
+  const renderTargetHeight = window.innerHeight;
+
+  camera.aspect = renderTargetWidth / renderTargetHeight;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(renderTargetWidth, renderTargetHeight);
+  postprocessing.rtTextureColors.setSize(renderTargetWidth, renderTargetHeight);
+  postprocessing.rtTextureDepth.setSize(renderTargetWidth, renderTargetHeight);
+  postprocessing.rtTextureDepthMask.setSize(
+    renderTargetWidth,
+    renderTargetHeight
+  );
+
+  const adjustedWidth =
+    renderTargetWidth * godrayRenderTargetResolutionMultiplier;
+  const adjustedHeight =
+    renderTargetHeight * godrayRenderTargetResolutionMultiplier;
+  postprocessing.rtTextureGodRays1.setSize(adjustedWidth, adjustedHeight);
+  postprocessing.rtTextureGodRays2.setSize(adjustedWidth, adjustedHeight);
+}
+
+function initPostprocessing(renderTargetWidth, renderTargetHeight) {
+  postprocessing.scene = new THREE.Scene();
+
+  postprocessing.camera = new THREE.OrthographicCamera(
+    -0.5,
+    0.5,
+    0.5,
+    -0.5,
+    -10000,
+    10000
+  );
+  postprocessing.camera.position.z = 100;
+
+  postprocessing.scene.add(postprocessing.camera);
+
+  postprocessing.rtTextureColors = new THREE.WebGLRenderTarget(
+    renderTargetWidth,
+    renderTargetHeight,
+    { type: THREE.HalfFloatType }
+  );
+
+  postprocessing.rtTextureDepth = new THREE.WebGLRenderTarget(
+    renderTargetWidth,
+    renderTargetHeight,
+    { type: THREE.HalfFloatType }
+  );
+  postprocessing.rtTextureDepthMask = new THREE.WebGLRenderTarget(
+    renderTargetWidth,
+    renderTargetHeight,
+    { type: THREE.HalfFloatType }
+  );
+
+  const adjustedWidth =
+    renderTargetWidth * godrayRenderTargetResolutionMultiplier;
+  const adjustedHeight =
+    renderTargetHeight * godrayRenderTargetResolutionMultiplier;
+  postprocessing.rtTextureGodRays1 = new THREE.WebGLRenderTarget(
+    adjustedWidth,
+    adjustedHeight,
+    { type: THREE.HalfFloatType }
+  );
+  postprocessing.rtTextureGodRays2 = new THREE.WebGLRenderTarget(
+    adjustedWidth,
+    adjustedHeight,
+    { type: THREE.HalfFloatType }
+  );
+
+  const godraysMaskShader = GodRaysDepthMaskShader;
+  postprocessing.godrayMaskUniforms = THREE.UniformsUtils.clone(
+    godraysMaskShader.uniforms
+  );
+  postprocessing.materialGodraysDepthMask = new THREE.ShaderMaterial({
+    uniforms: postprocessing.godrayMaskUniforms,
+    vertexShader: godraysMaskShader.vertexShader,
+    fragmentShader: godraysMaskShader.fragmentShader,
+  });
+
+  const godraysGenShader = GodRaysGenerateShader;
+  postprocessing.godrayGenUniforms = THREE.UniformsUtils.clone(
+    godraysGenShader.uniforms
+  );
+  postprocessing.materialGodraysGenerate = new THREE.ShaderMaterial({
+    uniforms: postprocessing.godrayGenUniforms,
+    vertexShader: godraysGenShader.vertexShader,
+    fragmentShader: godraysGenShader.fragmentShader,
+  });
+
+  const godraysCombineShader = GodRaysCombineShader;
+  postprocessing.godrayCombineUniforms = THREE.UniformsUtils.clone(
+    godraysCombineShader.uniforms
+  );
+  postprocessing.materialGodraysCombine = new THREE.ShaderMaterial({
+    uniforms: postprocessing.godrayCombineUniforms,
+    vertexShader: godraysCombineShader.vertexShader,
+    fragmentShader: godraysCombineShader.fragmentShader,
+  });
+
+  const godraysFakeSunShader = GodRaysFakeSunShader;
+  postprocessing.godraysFakeSunUniforms = THREE.UniformsUtils.clone(
+    godraysFakeSunShader.uniforms
+  );
+  postprocessing.materialGodraysFakeSun = new THREE.ShaderMaterial({
+    uniforms: postprocessing.godraysFakeSunUniforms,
+    vertexShader: godraysFakeSunShader.vertexShader,
+    fragmentShader: godraysFakeSunShader.fragmentShader,
+  });
+
+  postprocessing.godraysFakeSunUniforms.bgColor.value.setHex(bgColor);
+  postprocessing.godraysFakeSunUniforms.sunColor.value.setHex(sunColor);
+
+  postprocessing.godrayCombineUniforms.fGodRayIntensity.value = 0.75;
+
+  postprocessing.quad = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.0, 1.0),
+    postprocessing.materialGodraysGenerate
+  );
+  postprocessing.quad.position.z = -9900;
+  postprocessing.scene.add(postprocessing.quad);
+}
+
+function animate() {
+  render();
+}
+
+function getStepSize(filterLen, tapsPerPass, pass) {
+  return filterLen * Math.pow(tapsPerPass, -pass);
+}
+
+function filterGodRays(inputTex, renderTarget, stepSize) {
+  postprocessing.scene.overrideMaterial =
+    postprocessing.materialGodraysGenerate;
+
+  postprocessing.godrayGenUniforms["fStepSize"].value = stepSize;
+  postprocessing.godrayGenUniforms["tInput"].value = inputTex;
+
+  renderer.setRenderTarget(renderTarget);
+  renderer.render(postprocessing.scene, postprocessing.camera);
+  postprocessing.scene.overrideMaterial = null;
+}
+
+function render() {
+  const time = Date.now() / 4000;
+
+  sphereMesh.position.x = orbitRadius * Math.cos(time);
+  sphereMesh.position.z = orbitRadius * Math.sin(time) - 100;
+
+  if (postprocessing.enabled) {
+    clipPosition.x = sunPosition.x;
+    clipPosition.y = sunPosition.y;
+    clipPosition.z = sunPosition.z;
+    clipPosition.w = 1;
+
+    clipPosition
+      .applyMatrix4(camera.matrixWorldInverse)
+      .applyMatrix4(camera.projectionMatrix);
+
+    clipPosition.x /= clipPosition.w;
+    clipPosition.y /= clipPosition.w;
+
+    screenSpacePosition.x = (clipPosition.x + 1) / 2;
+    screenSpacePosition.y = (clipPosition.y + 1) / 2;
+    screenSpacePosition.z = clipPosition.z;
+
+    postprocessing.godrayGenUniforms["vSunPositionScreenSpace"].value.copy(
+      screenSpacePosition
+    );
+    postprocessing.godraysFakeSunUniforms["vSunPositionScreenSpace"].value.copy(
+      screenSpacePosition
+    );
+
+    renderer.setRenderTarget(postprocessing.rtTextureColors);
+    renderer.clear(true, true, false);
+
+    const sunsqH = 0.74 * window.innerHeight;
+    const sunsqW = 0.74 * window.innerHeight;
+
+    screenSpacePosition.x *= window.innerWidth;
+    screenSpacePosition.y *= window.innerHeight;
+
+    renderer.setScissor(
+      screenSpacePosition.x - sunsqW / 2,
+      screenSpacePosition.y - sunsqH / 2,
+      sunsqW,
+      sunsqH
+    );
+    renderer.setScissorTest(true);
+
+    postprocessing.godraysFakeSunUniforms["fAspect"].value =
+      window.innerWidth / window.innerHeight;
+
+    postprocessing.scene.overrideMaterial =
+      postprocessing.materialGodraysFakeSun;
+    renderer.setRenderTarget(postprocessing.rtTextureColors);
+    renderer.render(postprocessing.scene, postprocessing.camera);
+
+    renderer.setScissorTest(false);
+
+    scene.overrideMaterial = null;
+    renderer.setRenderTarget(postprocessing.rtTextureColors);
+    renderer.render(scene, camera);
+
+    scene.overrideMaterial = materialDepth;
+    renderer.setRenderTarget(postprocessing.rtTextureDepth);
+    renderer.clear();
+    renderer.render(scene, camera);
+
+    postprocessing.godrayMaskUniforms["tInput"].value =
+      postprocessing.rtTextureDepth.texture;
+
+    postprocessing.scene.overrideMaterial =
+      postprocessing.materialGodraysDepthMask;
+    renderer.setRenderTarget(postprocessing.rtTextureDepthMask);
+    renderer.render(postprocessing.scene, postprocessing.camera);
+
+    const filterLen = 1.0;
+
+    const TAPS_PER_PASS = 6.0;
+
+    filterGodRays(
+      postprocessing.rtTextureDepthMask.texture,
+      postprocessing.rtTextureGodRays2,
+      getStepSize(filterLen, TAPS_PER_PASS, 1.0)
+    );
+
+    filterGodRays(
+      postprocessing.rtTextureGodRays2.texture,
+      postprocessing.rtTextureGodRays1,
+      getStepSize(filterLen, TAPS_PER_PASS, 2.0)
+    );
+
+    filterGodRays(
+      postprocessing.rtTextureGodRays1.texture,
+      postprocessing.rtTextureGodRays2,
+      getStepSize(filterLen, TAPS_PER_PASS, 3.0)
+    );
+
+    postprocessing.godrayCombineUniforms["tColors"].value =
+      postprocessing.rtTextureColors.texture;
+    postprocessing.godrayCombineUniforms["tGodRays"].value =
+      postprocessing.rtTextureGodRays2.texture;
+
+    postprocessing.scene.overrideMaterial =
+      postprocessing.materialGodraysCombine;
+
+    renderer.setRenderTarget(null);
+    renderer.render(postprocessing.scene, postprocessing.camera);
+    postprocessing.scene.overrideMaterial = null;
+  } else {
+    renderer.setRenderTarget(null);
+    renderer.clear();
+    renderer.render(scene, camera);
+  }
+}

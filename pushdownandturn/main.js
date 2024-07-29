@@ -96,7 +96,6 @@ function createLandscape(params) {
   }
 
   function sceneTextures() {
-    // pallete
     new THREE.TextureLoader().load(params.palleteImage, function (texture) {
       terrain.material.uniforms.pallete.value = texture;
       terrain.material.needsUpdate = true;
@@ -161,7 +160,6 @@ function createLandscape(params) {
   function render() {
     requestAnimationFrame(render);
 
-    // damping mouse for smoother interaction
     mouse.xDamped = lerp(mouse.xDamped, mouse.x, 0.1);
     mouse.yDamped = lerp(mouse.yDamped, mouse.y, 0.1);
 

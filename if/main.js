@@ -6,7 +6,7 @@ import { Sky } from "three/addons/objects/Sky.js";
 
 let container;
 let camera, scene, renderer;
-let controls, water, sun, mesh;
+let controls, water, sun;
 
 init();
 animate();

@@ -84,7 +84,7 @@ body {
 
 #lyrics-4 {
   font-size: calc((88vh - 92px) / 37);
-  text-shadow: 0 0 20px #111a17;
+  text-shadow: 0 0 10px #5c6164;
 }
 
 #lyrics-5 {
@@ -94,7 +94,7 @@ body {
 
 #lyrics-6 {
   font-size: calc((88vh - 92px) / 44);
-  text-shadow: 0 0 5px #000000;
+  text-shadow: 0 0 10px #5c6164;
 }
 
 #lyrics-7 {

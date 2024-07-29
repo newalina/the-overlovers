@@ -1,30 +1,221 @@
 import * as THREE from "three";
 import {
   tslFn,
-  uniform,
-  storage,
   attribute,
+  varyingProperty,
+  timerLocal,
+  uniform,
+  wgslFn,
+  texture,
+  sampler,
+  uv,
+  clamp,
   float,
   vec2,
   vec3,
-  color,
-  instanceIndex,
-  PointsNodeMaterial,
-} from "three/nodes";
+  fract,
+  floor,
+  positionGeometry,
+  sin,
+} from "three/tsl";
 
-import WebGPURenderer from "three/addons/renderers/webgpu/WebGPURenderer.js";
+import WebGPU from "three/addons/capabilities/WebGPU.js";
 
-let camera, scene, renderer;
-let computeNode;
+let renderer, camera, scene;
+const dpr = window.devicePixelRatio;
 
-const pointerVector = new THREE.Vector2(-10.0, -10.0);
-const scaleVector = new THREE.Vector2(1, 1);
+const crtWidthUniform = uniform(1608);
+const crtHeightUniform = uniform(1608);
 
-init();
+const canvas = document.getElementById("c");
+
+function onWindowResize() {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function animate() {
+  renderer.render(scene, camera);
+}
 
 function init() {
-  camera = new THREE.OrthographicCamera(-1.0, 1.0, 1.0, -1.0, 0, 1);
-  camera.position.z = 1;
+  if (WebGPU.isAvailable() === false) {
+    document.body.appendChild(WebGPU.getErrorMessage());
+
+    throw new Error("No WebGPU support");
+  }
+
+  const vUv = varyingProperty("vec2", "vUv");
+
+  const wgslVertexShader = wgslFn(
+    `
+    fn crtVertex(
+       position: vec3f,
+      uv: vec2f
+    ) -> vec3<f32> {
+      varyings.vUv = uv;
+      return position;
+    }
+  `,
+    [vUv]
+  );
+
+  const wgslFragmentShader = wgslFn(`
+    fn crtFragment(
+      vUv: vec2f,
+      tex: texture_2d<f32>,
+      texSampler: sampler,
+      crtWidth: f32,
+      crtHeight: f32,
+      cellOffset: f32,
+      cellSize: f32,
+      borderMask: f32,
+      time: f32,
+      speed: f32,
+      pulseIntensity: f32,
+      pulseWidth: f32,
+      pulseRate: f32
+    ) -> vec3<f32> {
+      // Convert uv into map of pixels
+      var pixel = ( vUv * 0.5 + 0.5 ) * vec2<f32>(
+        crtWidth,
+        crtHeight
+      );
+      // Coordinate for each cell in the pixel map
+      let coord = pixel / cellSize;
+      // Three color values for each cell (r, g, b)
+      let subcoord = coord * vec2f( 3.0, 1.0 );
+      let offset = vec2<f32>( 0, fract( floor( coord.x ) * cellOffset ) );
+
+      let maskCoord = floor( coord + offset ) * cellSize;
+
+      var samplePoint = maskCoord / vec2<f32>(crtWidth, crtHeight);
+      samplePoint.x += fract( time * speed / 20 );
+
+      var color = textureSample(
+        tex,
+        texSampler,
+        samplePoint
+      ).xyz;
+
+      // Current implementation does not give an even amount of space to each r, g, b unit of a cell
+      // Fix/hack this by multiplying subCoord.x by cellSize at cellSizes below 6
+      let ind = floor( subcoord.x ) % 3;
+
+      var maskColor = vec3<f32>(
+        f32( ind == 0.0 ),
+        f32( ind == 1.0 ),
+        f32( ind == 2.0 )
+      ) * 3.0;
+
+      let cellUV = fract( subcoord + offset ) * 2.0 - 1.0;
+      var border: vec2<f32> = 1.0 - cellUV * cellUV * borderMask;
+
+      maskColor *= vec3f( clamp( border.x, 0.0, 1.0 ) * clamp( border.y, 0.0, 1.0) );
+
+      color *= maskColor;
+
+      color.r *= 1.0 + pulseIntensity * sin( pixel.y / pulseWidth + time * pulseRate );
+      color.b *= 1.0 + pulseIntensity * sin( pixel.y / pulseWidth + time * pulseRate );
+      color.g *= 1.0 + pulseIntensity * sin( pixel.y / pulseWidth + time * pulseRate );
+
+      return color;
+    }
+  `);
+
+  const textureLoader = new THREE.TextureLoader();
+  const planetTexture = textureLoader.load(
+    "/assets/textures/earth_lights_2048.png"
+  );
+  planetTexture.wrapS = THREE.RepeatWrapping;
+  planetTexture.wrapT = THREE.RepeatWrapping;
+
+  const cellOffsetUniform = uniform(0.5);
+  const cellSizeUniform = uniform(6);
+  const borderMaskUniform = uniform(1);
+  const pulseIntensityUniform = uniform(0.06);
+  const pulseWidthUniform = uniform(60);
+  const pulseRateUniform = uniform(20);
+  const wgslShaderSpeedUniform = uniform(0.05);
+  const tslShaderSpeedUniform = uniform(0.05);
+
+  const wgslShaderMaterial = new THREE.MeshBasicMaterial();
+
+  wgslShaderMaterial.positionNode = wgslVertexShader({
+    position: attribute("position"),
+    uv: attribute("uv"),
+  });
+
+  wgslShaderMaterial.fragmentNode = wgslFragmentShader({
+    vUv: vUv,
+    tex: texture(planetTexture),
+    texSampler: sampler(planetTexture),
+    crtWidth: crtWidthUniform,
+    crtHeight: crtHeightUniform,
+    cellOffset: cellOffsetUniform,
+    cellSize: cellSizeUniform,
+    borderMask: borderMaskUniform,
+    time: timerLocal(),
+    speed: wgslShaderSpeedUniform,
+    pulseIntensity: pulseIntensityUniform,
+    pulseWidth: pulseWidthUniform,
+    pulseRate: pulseRateUniform,
+  });
+
+  const tslVertexShader = tslFn(() => {
+    vUv.assign(uv());
+    return positionGeometry;
+  });
+
+  const tslFragmentShader = tslFn(() => {
+    const dimensions = vec2(crtWidthUniform, crtHeightUniform);
+    const translatedUV = vUv.mul(0.5).add(0.5);
+    const pixel = translatedUV.mul(dimensions);
+
+    const coord = pixel.div(cellSizeUniform);
+    const subCoord = coord.mul(vec2(3.0, 1.0));
+
+    const cellOffset = vec2(0.0, fract(floor(coord.x).mul(cellOffsetUniform)));
+
+    const maskCoord = floor(coord.add(cellOffset)).mul(cellSizeUniform);
+    const samplePoint = maskCoord.div(dimensions);
+    const time = timerLocal().mul(tslShaderSpeedUniform);
+    samplePoint.x = samplePoint.x.add(fract(time.div(20)));
+    samplePoint.y = samplePoint.y.sub(1.5);
+
+    let color = texture(planetTexture, samplePoint);
+
+    const ind = floor(subCoord.x).mod(3);
+
+    let maskColor = vec3(ind.equal(0.0), ind.equal(1.0), ind.equal(2.0)).mul(
+      3.0
+    );
+
+    const subCoordOffset = fract(subCoord.add(cellOffset));
+    let cellUV = subCoordOffset.mul(2.0);
+    cellUV = cellUV.sub(1.0);
+
+    const border = float(1.0).sub(cellUV.mul(cellUV).mul(borderMaskUniform));
+
+    const clampX = clamp(border.x, 0.0, 1.0);
+    const clampY = clamp(border.y, 0.0, 1.0);
+    const borderClamp = clampX.mul(clampY);
+    maskColor = maskColor.mul(borderClamp);
+
+    color = color.mul(maskColor);
+
+    const pixelDampen = pixel.y.div(pulseWidthUniform);
+    let pulse = sin(pixelDampen.add(time.mul(pulseRateUniform)));
+    pulse = pulse.mul(pulseIntensityUniform);
+    color = color.mul(float(1.0).add(pulse));
+
+    return color;
+  });
+
+  const tslShaderMaterial = new THREE.MeshBasicMaterial();
+  tslShaderMaterial.positionNode = tslVertexShader();
+  tslShaderMaterial.colorNode = tslFragmentShader();
+
+  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
   const listener = new THREE.AudioListener();
   camera.add(listener);
@@ -40,111 +231,24 @@ function init() {
 
   scene = new THREE.Scene();
 
-  const particleNum = 300000;
-  const particleSize = 2;
+  const geometry = new THREE.PlaneGeometry(2, 1);
 
-  const particleArray = new Float32Array(particleNum * particleSize);
-  const velocityArray = new Float32Array(particleNum * particleSize);
+  const wgslQuad = new THREE.Mesh(geometry, wgslShaderMaterial);
+  wgslQuad.position.y += 0.5;
+  scene.add(wgslQuad);
 
-  const particleBuffer = new THREE.InstancedBufferAttribute(particleArray, 2);
-  const velocityBuffer = new THREE.InstancedBufferAttribute(velocityArray, 2);
+  const tslQuad = new THREE.Mesh(geometry, tslShaderMaterial);
+  tslQuad.position.y -= 0.5;
+  scene.add(tslQuad);
 
-  const particleBufferNode = storage(particleBuffer, "vec2", particleNum);
-  const velocityBufferNode = storage(velocityBuffer, "vec2", particleNum);
-
-  const computeShaderFn = tslFn(() => {
-    const particle = particleBufferNode.element(instanceIndex);
-    const velocity = velocityBufferNode.element(instanceIndex);
-
-    const pointer = uniform(pointerVector);
-    const limit = uniform(scaleVector);
-
-    const position = particle.add(velocity).temp();
-
-    velocity.x = position.x
-      .abs()
-      .greaterThanEqual(limit.x)
-      .cond(velocity.x.negate(), velocity.x);
-    velocity.y = position.y
-      .abs()
-      .greaterThanEqual(limit.y)
-      .cond(velocity.y.negate(), velocity.y);
-
-    position.assign(position.min(limit).max(limit.negate()));
-
-    const pointerSize = 0.1;
-    const distanceFromPointer = pointer.sub(position).length();
-
-    particle.assign(
-      distanceFromPointer.lessThanEqual(pointerSize).cond(vec3(), position)
-    );
-  });
-
-  computeNode = computeShaderFn().compute(particleNum);
-  computeNode.onInit = ({ renderer }) => {
-    const precomputeShaderNode = tslFn(() => {
-      const particleIndex = float(instanceIndex);
-
-      const randomAngle = particleIndex.mul(0.005).mul(Math.PI * 2);
-      const randomSpeed = particleIndex.mul(0.00000001).add(0.0000001);
-
-      const velX = randomAngle.sin().mul(randomSpeed);
-      const velY = randomAngle.cos().mul(randomSpeed);
-
-      const velocity = velocityBufferNode.element(instanceIndex);
-
-      velocity.xy = vec2(velX, velY);
-    });
-
-    renderer.compute(precomputeShaderNode().compute(particleNum));
-  };
-
-  const particleNode = attribute("particle", "vec2");
-
-  const pointsGeometry = new THREE.BufferGeometry();
-  pointsGeometry.setAttribute(
-    "position",
-    new THREE.BufferAttribute(new Float32Array(3), 3)
-  );
-  pointsGeometry.setAttribute("particle", particleBuffer);
-  pointsGeometry.drawRange.count = 1;
-
-  const pointsMaterial = new PointsNodeMaterial();
-  pointsMaterial.colorNode = particleNode.add(color(0xffffff));
-  pointsMaterial.positionNode = particleNode;
-
-  const mesh = new THREE.Points(pointsGeometry, pointsMaterial);
-  mesh.isInstancedMesh = true;
-  mesh.count = particleNum;
-  scene.add(mesh);
-
-  renderer = new WebGPURenderer({ antialias: true });
-  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer = new THREE.WebGPURenderer({ antialias: true, canvas: canvas });
+  renderer.setPixelRatio(dpr);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setAnimationLoop(animate);
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
   document.body.appendChild(renderer.domElement);
 
   window.addEventListener("resize", onWindowResize);
-  window.addEventListener("mousemove", onMouseMove);
 }
 
-function onWindowResize() {
-  camera.updateProjectionMatrix();
-
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-function onMouseMove(event) {
-  const x = event.clientX;
-  const y = event.clientY;
-
-  const width = window.innerWidth;
-  const height = window.innerHeight;
-
-  pointerVector.set((x / width - 0.5) * 2.0, (-y / height + 0.5) * 2.0);
-}
-
-function animate() {
-  renderer.compute(computeNode);
-  renderer.render(scene, camera);
-}
+init();
